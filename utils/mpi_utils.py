@@ -1,9 +1,11 @@
 from mpi4py import MPI
 import sys
+import re
 
 
 def create_mpi_info():
     """
+    WORKS ONLY ON ANDES
     Create a two-level MPI hierarchy of the global communicator MPI_COMM_WORLD and
     a node-local communicator to group processes by host.
     Returns a dictionary of global and node-local rank and size information.
@@ -15,7 +17,8 @@ def create_mpi_info():
         
         # Create communicator 'node_comm' of node-local processes
         hostname = MPI.Get_processor_name()  # e.g. andes154.olcf.ornl.gov
-        host_uid = int(hostname.split(".olcf.ornl.gov")[0].split("andes")[1])
+        # host_uid = int(hostname.split(".olcf.ornl.gov")[0].split("andes")[1])
+        host_uid = int(re.sub("[^0-9]", "", hostname))
         
         node_comm = comm_world.Split(color=host_uid, key=global_rank)
         local_rank = node_comm.Get_rank()
@@ -39,12 +42,13 @@ def create_mpi_info():
                     'global_rank'     : global_rank}
         
         # print("Global rank {} is local rank {} on host {}".format(global_rank, local_rank, hostname))
+        print(mpi_info)
         return mpi_info
  
     
     except Exception as e:
         print(e, flush=True)
-        sys.exit(1)
+        raise e
 
 
 if __name__ == '__main__':
