@@ -4,6 +4,7 @@ Run this with 1 MPI process per node
 """
 import glob
 import os
+import getpass
 import tarfile
 import traceback
 from concurrent.futures import ProcessPoolExecutor
@@ -20,8 +21,8 @@ tarfiles_in = "./dataset"
 # Where to store the new tar files containing the processed dataset
 tarfiles_out = "./dataset_out"
 
-# Location of the scratch space where tar files can be unpacked
-scratch_space_root = "/tmp/kmehta"
+# Set the location of the scratch space where tar files will be unpacked to /tmp/<username>
+scratch_space_root = "/tmp/{}".format(getpass.getuser())
 
 
 def test_scratch_space():
