@@ -121,7 +121,7 @@ def process_tarfile(tarfpath):
     """
     cwd = None
     try:
-        print("Processing {}".format(tarfpath), flush=True)
+        print("Processing {} on {}".format(tarfpath, MPI.Get_processor_name()), flush=True)
 
         # Unpack the tar file in the working directory
         tarf_name = os.path.basename(tarfpath).split('.')[0]
