@@ -71,6 +71,7 @@ def create_new_tar(cwd, mol_dirs):
     # Tar the molecule directories again after the gaussian smearing is done
 
     new_tar_f = os.path.basename(cwd) + "-gaussian-smearing.tar.gz"
+    print("Creating new tar file {}".format(new_tar_f), flush=True)
     t = None
 
     try:
@@ -107,6 +108,8 @@ def process_tarfile(tarfpath):
     :param fargs: A tuple of the type (tar file path, {'mpi_info': mpi_info})
     """
     try:
+        print("Processing {}".format(tarfpath), flush=True)
+
         # Unpack the tar file in the working directory
         tarf_name = os.path.basename(tarfpath).split('.')[0]
         cwd = os.path.join(scratch_space_root, tarf_name)
@@ -117,7 +120,7 @@ def process_tarfile(tarfpath):
 
         # Get all molecule_directories in the unpacked tar file
         mol_dirs = get_mol_dirs(cwd)
-        print("{} molecules found in {}".format(len(mol_dirs), os.path.basename(tarfpath)), flush=True)
+        print("Processing {} molecules found in {}".format(len(mol_dirs), os.path.basename(tarfpath)), flush=True)
 
         # Distribute molecule processing amongst processes on the node
         distribute_molecules_locally(mol_dirs)
