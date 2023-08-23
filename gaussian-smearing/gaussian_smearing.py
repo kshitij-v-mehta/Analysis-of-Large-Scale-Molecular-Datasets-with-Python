@@ -119,6 +119,7 @@ def process_tarfile(tarfpath):
     Unpack and process all molecules in a tar file
     :param fargs: A tuple of the type (tar file path, {'mpi_info': mpi_info})
     """
+    cwd = None
     try:
         print("Processing {}".format(tarfpath), flush=True)
 
@@ -141,13 +142,15 @@ def process_tarfile(tarfpath):
         create_new_tar(cwd, mol_dirs)
 
     except Exception as e:
-        print(e)  # print some more details about the molecule
+        print(e)
         print(traceback.format_exc(), flush=True)
         # Don't raise the Exception, just return
 
     finally:
-        # TODO: Cleanup local scratch directory
-        pass
+        try:
+            shutil.rmtree(cwd)
+        except Exception as e:
+            print("Couldn't remove scratch space directory {} due to {}. Continuing ..".format(cwd, e), flush=True)
 
 
 def main():
