@@ -4,6 +4,7 @@ Run this with 1 MPI process per node
 """
 import glob
 import os
+import shutil
 import tarfile
 import traceback
 from concurrent.futures import ProcessPoolExecutor
@@ -21,7 +22,7 @@ tarfiles_in = "./dataset"
 tarfiles_out = "./dataset_out"
 
 # Location of the scratch space where tar files can be unpacked
-scratch_space_root = "/tmp/kmehta"
+scratch_space_root = "./tmp/kmehta"
 
 
 def test_scratch_space():
@@ -69,13 +70,20 @@ def dftb_uv_2d(mol_dir):
 def create_new_tar(cwd, mol_dirs):
     # Tar the molecule directories again after the gaussian smearing is done
 
-    new_tar_f = os.path.basename(cwd) + "-gaussian-smearing.tar.gz"
     t = None
 
     try:
-        t = tarfile.open("{}/{}".format(tarfiles_out, new_tar_f), mode='x:gz')
+        new_tar_f = os.path.basename(cwd) + "-gaussian-smearing.tar.gz"
+        new_tar_f_scratch_loc = "{}/{}".format(scratch_space_root, new_tar_f)
+
+        # Create the new tar file in /tmp first, and then copy it to the file system
+        t = tarfile.open(new_tar_f_scratch_loc, mode='x:gz')
         for m in mol_dirs:
             t.add(m, arcname=os.path.basename(m))
+
+        # Copy the tar files to the parallel file system
+        new_tar_f_final_loc = "{}/{}".format(tarfiles_out, new_tar_f)
+        shutil.move(new_tar_f_scratch_loc, new_tar_f_final_loc)
 
     except Exception as e:
         print(e)
