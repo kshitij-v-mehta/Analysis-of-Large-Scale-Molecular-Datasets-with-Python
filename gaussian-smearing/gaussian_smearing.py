@@ -21,7 +21,7 @@ tarfiles_in = "./dataset"
 tarfiles_out = "./dataset_out"
 
 # Location of the scratch space where tar files can be unpacked
-scratch_space_root = "./tmp/kmehta"
+scratch_space_root = "/tmp/kmehta"
 
 
 def test_scratch_space():
@@ -56,12 +56,13 @@ def get_mol_dirs(tar_cwd):
 
 def dftb_uv_2d(mol_dir):
     try:
-        print("Process {} with global rank {} received molecule {}"
-              "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), mol_dir), flush=True)
+        print("Process {} with global rank {} on node {} received molecule {}"
+              "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
         return
 
     except Exception as e:
         print(e)
+        print(traceback.format_exc(), flush=True)
         raise e
 
 
@@ -85,6 +86,7 @@ def distribute_molecules_locally(mol_dirs):
 
     except Exception as e:
         print(e, flush=True)
+        print(traceback.format_exc(), flush=True)
         raise e
 
 
@@ -114,6 +116,7 @@ def process_tarfile(tarfpath):
 
     except Exception as e:
         print(e)  # print some more details about the molecule
+        print(traceback.format_exc(), flush=True)
         # Don't raise the Exception, just return
 
     finally:
