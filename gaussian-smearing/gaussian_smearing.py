@@ -57,8 +57,12 @@ def get_mol_dirs(tar_cwd):
 
 def dftb_uv_2d(mol_dir):
     try:
-        print("Process {} with global rank {} on node {} received molecule {}"
-              "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
+        # print("Process {} with global rank {} on node {} received molecule {}"
+        #       "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
+
+        with open("{}/EXC-smooth.DAT".format(mol_dir), "w") as f:
+            pass
+
         return
 
     except Exception as e:
