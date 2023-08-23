@@ -65,23 +65,33 @@ def dftb_uv_2d(mol_dir):
         raise e
 
 
-def create_new_tar(cwd):
-    # Tar the molecule directories again after the gaussian smearing
-    pass
+def create_new_tar(cwd, mol_dirs):
+    # Tar the molecule directories again after the gaussian smearing is done
+
+    new_tar_f = os.path.basename(cwd) + "-gaussian-smearing.tar.gz"
+    t = None
+
+    try:
+        t = tarfile.open("{}/{}".format(tarfiles_out, new_tar_f), mode='x:gz')
+        for m in mol_dirs:
+            t.add(m, arcname=os.path.basename(m))
+
+    except Exception as e:
+        print(e)
+        raise e
+
+    finally:
+        if t is not None:
+            t.close()
 
 
 def distribute_molecules_locally(mol_dirs):
     # Distribute molecules from a tar file amongst all processes on the compute node
 
     try:
-
-        # with MPICommExecutor(comm=node_comm) as executor:
-        #     executor.map(dftb_uv_2d, mol_dirs, unordered=True)
-
+        # Create a pool of processes and distribute molecules amongst them
         with ProcessPoolExecutor() as executor:
             executor.map(dftb_uv_2d, mol_dirs)
-
-        # dftb_uv_2d(mol_dirs[0])
 
     except Exception as e:
         print(e, flush=True)
@@ -110,7 +120,7 @@ def process_tarfile(tarfpath):
         distribute_molecules_locally(mol_dirs)
 
         # Tar everything up
-        create_new_tar(cwd)
+        create_new_tar(cwd, mol_dirs)
 
     except Exception as e:
         print(e)  # print some more details about the molecule
