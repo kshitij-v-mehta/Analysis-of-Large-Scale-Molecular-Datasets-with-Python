@@ -14,8 +14,6 @@ from itertools import repeat
 from mpi4py import MPI
 from mpi4py.futures import MPICommExecutor
 
-import mpi_utils
-
 # Location of the original tar files
 tarfiles_in = "./dataset"
 
@@ -120,6 +118,7 @@ def process_tarfile(tarfpath):
     :param fargs: A tuple of the type (tar file path, {'mpi_info': mpi_info})
     """
     cwd = None
+    retval = 0
     try:
         print("Processing {} on {}".format(tarfpath, MPI.Get_processor_name()), flush=True)
 
@@ -141,9 +140,13 @@ def process_tarfile(tarfpath):
         # Tar everything up
         create_new_tar(cwd, mol_dirs)
 
+        # Set return value to success
+        retval = 0
+
     except Exception as e:
         print(e)
         print(traceback.format_exc(), flush=True)
+        retval = 1
         # Don't raise the Exception, just return
 
     finally:
@@ -151,6 +154,8 @@ def process_tarfile(tarfpath):
             shutil.rmtree(cwd)
         except Exception as e:
             print("Couldn't remove scratch space directory {} due to {}. Continuing ..".format(cwd, e), flush=True)
+        finally:
+            return retval
 
 
 def main():
