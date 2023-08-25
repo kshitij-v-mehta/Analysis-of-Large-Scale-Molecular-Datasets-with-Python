@@ -8,13 +8,17 @@ import getpass
 import shutil
 import tarfile
 import traceback
+from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 
 from mpi4py import MPI
 from mpi4py.futures import MPICommExecutor
 
-import mpi_utils
+# import mpi_utils
+import importlib
+dftbuv2d = importlib.import_module("dftb-uv_2d")
+from utils import draw_2Dmol
 
 # Location of the original tar files
 tarfiles_in = "./dataset"
@@ -56,22 +60,6 @@ def get_mol_dirs(tar_cwd):
         raise e
 
 
-def dftb_uv_2d(mol_dir):
-    try:
-        # print("Process {} with global rank {} on node {} received molecule {}"
-        #       "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
-
-        with open("{}/EXC-smooth.DAT".format(mol_dir), "w") as f:
-            pass
-
-        return
-
-    except Exception as e:
-        print(e)
-        print(traceback.format_exc(), flush=True)
-        raise e
-
-
 def create_new_tar(cwd, mol_dirs):
     # Tar the molecule directories again after the gaussian smearing is done
 
@@ -100,13 +88,36 @@ def create_new_tar(cwd, mol_dirs):
             t.close()
 
 
-def distribute_molecules_locally(mol_dirs):
+def dftb_uv_2d(mol_dir):
+    try:
+        # print("Process {} with global rank {} on node {} received molecule {}"
+        #       "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
+
+        draw_2Dmol(MPI.COMM_SELF, mol_dir)
+        dftbuv2d.smooth_spectrum(MPI.COMM_SELF, str(Path(mol_dir).parent), os.path.basename(mol_dir), None, 70.0, None, None)
+
+        return None
+
+    except Exception as e:
+        print("Exception: {} for molecule {}".format(e, mol_dir), flush=True)
+        print(traceback.format_exc(), flush=True)
+        return mol_dir
+
+
+def process_molecules_on_node(mol_dirs):
     # Distribute molecules from a tar file amongst all processes on the compute node
 
     try:
+        nfailed = 0
+        failed_molecules = []
         # Create a pool of processes and distribute molecules amongst them
         with ProcessPoolExecutor() as executor:
-            executor.map(dftb_uv_2d, mol_dirs)
+            for m in executor.map(dftb_uv_2d, mol_dirs):
+                if m is not None:
+                    nfailed += 1
+                    failed_molecules.append(m)
+
+        assert nfailed == 0, "dftb_uv_2d failed for {} molecules: {}".format(len(failed_molecules), failed_molecules)
 
     except Exception as e:
         print(e, flush=True)
@@ -136,7 +147,7 @@ def process_tarfile(tarfpath):
         print("Processing {} molecules found in {}".format(len(mol_dirs), os.path.basename(tarfpath)), flush=True)
 
         # Distribute molecule processing amongst processes on the node
-        distribute_molecules_locally(mol_dirs)
+        process_molecules_on_node(mol_dirs)
 
         # Tar everything up
         create_new_tar(cwd, mol_dirs)
