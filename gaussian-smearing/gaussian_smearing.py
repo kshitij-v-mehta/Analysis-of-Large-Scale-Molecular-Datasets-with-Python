@@ -20,6 +20,7 @@ import importlib
 dftbuv2d = importlib.import_module("dftb-uv_2d")
 from utils import draw_2Dmol
 
+
 # Location of the original tar files
 tarfiles_in = "./dataset"
 
@@ -131,6 +132,7 @@ def process_tarfile(tarfpath):
     :param fargs: A tuple of the type (tar file path, {'mpi_info': mpi_info})
     """
     cwd = None
+    retval = 0
     try:
         print("Processing {} on {}".format(tarfpath, MPI.Get_processor_name()), flush=True)
 
@@ -152,9 +154,13 @@ def process_tarfile(tarfpath):
         # Tar everything up
         create_new_tar(cwd, mol_dirs)
 
+        # Set return value to success
+        retval = 0
+
     except Exception as e:
         print(e)
         print(traceback.format_exc(), flush=True)
+        retval = 1
         # Don't raise the Exception, just return
 
     finally:
@@ -162,9 +168,12 @@ def process_tarfile(tarfpath):
             shutil.rmtree(cwd)
         except Exception as e:
             print("Couldn't remove scratch space directory {} due to {}. Continuing ..".format(cwd, e), flush=True)
+        finally:
+            return retval
 
 
 def main():
+    tar_files = []
     try:
         # mpi_info = mpi_utils.create_mpi_info()
         #
@@ -177,23 +186,31 @@ def main():
         test_scratch_space()
 
         # Read in the list of tar files
-        tar_files = []
         if MPI.COMM_WORLD.Get_rank() == 0:
             tar_files = get_tar_file_list()
-
-        # Process tar files in parallel using a manager-worker pattern
-        with MPICommExecutor() as executor:
-            executor.map(process_tarfile, tar_files, chunksize=1, unordered=True)
-
-        # All done
-        MPI.COMM_WORLD.Barrier()
-        if MPI.COMM_WORLD.Get_rank() == 0:
-            print("All done. Exiting.")
 
     except Exception as e:
         print(e, flush=True)
         print(traceback.format_exc())
         MPI.COMM_WORLD.Abort(1)
+
+    try:
+        # Process tar files in parallel using a manager-worker pattern
+        nfailed = 0
+        with MPICommExecutor() as executor:
+            for m in executor.map(process_tarfile, tar_files, chunksize=1, unordered=True):
+                nfailed += m
+
+        # All done
+        MPI.COMM_WORLD.Barrier()
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            print("All done. {}/{} tar files successfully processed. Exiting."
+                  .format(len(tar_files)-nfailed, len(tar_files)))
+
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc(), flush=True)
+        # Something went wrong processing a tar file. Don't exit, continue with the next one.
 
 
 if __name__ == '__main__':
