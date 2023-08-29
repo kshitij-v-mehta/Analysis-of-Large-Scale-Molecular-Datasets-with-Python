@@ -15,7 +15,7 @@ from itertools import repeat
 from mpi4py import MPI
 from mpi4py.futures import MPICommExecutor
 
-# import mpi_utils
+import mpi_utils
 import importlib
 dftbuv2d = importlib.import_module("dftb-uv_2d")
 from utils import draw_2Dmol
@@ -41,7 +41,8 @@ def test_scratch_space():
 
 def get_tar_file_list():
     try:
-        tarfiles_list = glob.glob("{}/*.tar.gz".format(tarfiles_in))
+        _tarfiles_list = glob.glob("{}/*.tar.gz".format(tarfiles_in))
+        tarfiles_list = [tarf for tarf in _tarfiles_list if 'unprocessed' not in tarf]
         assert len(tarfiles_list) > 0, "No tar files found at {}".format(tarfiles_in)
 
         print("Found {} tar files in {}".format(len(tarfiles_list), tarfiles_in), flush=True)
@@ -94,8 +95,11 @@ def dftb_uv_2d(mol_dir):
         # print("Process {} with global rank {} on node {} received molecule {}"
         #       "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
 
-        draw_2Dmol(MPI.COMM_SELF, mol_dir)
+        # draw_2Dmol(MPI.COMM_SELF, mol_dir)
         dftbuv2d.smooth_spectrum(MPI.COMM_SELF, str(Path(mol_dir).parent), os.path.basename(mol_dir), None, 70.0, None, None)
+
+        # Verify that the spectrum png file was created
+        assert len(glob.glob("{}/abs_spectrum_*.png".format(mol_dir))) == 1, "spectrum png file not created"
 
         return None
 
@@ -175,12 +179,12 @@ def process_tarfile(tarfpath):
 def main():
     tar_files = []
     try:
-        # mpi_info = mpi_utils.create_mpi_info()
-        #
-        # # Ensure 1 process per node has been spawned
-        # if mpi_info['local_size'] > 1:
-        #     print("ERROR. Please spawn one process per node for optimal performance. Exiting.", flush=True)
-        #     MPI.COMM_WORLD.Abort(1)
+        mpi_info = mpi_utils.create_mpi_info()
+        
+        # Ensure 1 process per node has been spawned
+        if mpi_info['local_size'] > 1:
+            print("ERROR. Please spawn one process per node for optimal performance. Exiting.", flush=True)
+            MPI.COMM_WORLD.Abort(1)
 
         # Test that you have write access to the scratch space
         test_scratch_space()
