@@ -74,8 +74,8 @@ def create_new_tar(cwd, mol_dirs):
 
         # Create the new tar file in /tmp first, and then copy it to the file system
         with tarfile.open(new_tar_f_scratch_loc, mode='x:gz') as t:
-        for m in mol_dirs:
-            t.add(m, arcname=os.path.basename(m))
+            for m in mol_dirs:
+                t.add(m, arcname=os.path.basename(m))
 
         # Copy the tar files to the parallel file system
         new_tar_f_final_loc = "{}/{}".format(tarfiles_out, new_tar_f)
