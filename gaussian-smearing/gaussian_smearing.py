@@ -6,7 +6,7 @@ import glob
 import os
 import getpass
 import shutil
-import tarfile
+import subprocess
 import traceback
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
@@ -18,7 +18,6 @@ from mpi4py.futures import MPICommExecutor
 import mpi_utils
 import importlib
 dftbuv2d = importlib.import_module("dftb-uv_2d")
-from utils import draw_2Dmol
 
 
 # Location of the original tar files
@@ -73,9 +72,11 @@ def create_new_tar(cwd, mol_dirs):
         new_tar_f_scratch_loc = "{}/{}".format(scratch_space_root, new_tar_f)
 
         # Create the new tar file in /tmp first, and then copy it to the file system
-        with tarfile.open(new_tar_f_scratch_loc, mode='x:gz') as t:
-            for m in mol_dirs:
-                t.add(m, arcname=os.path.basename(m))
+        run_cmd = "tar -C {} -czf {}".format(scratch_space_root, new_tar_f)
+        run_cmd += " ".join(mol_dirs)
+
+        p = subprocess.run(run_cmd.split())
+        p.check_returncode()
 
         # Copy the tar files to the parallel file system
         new_tar_f_final_loc = "{}/{}".format(tarfiles_out, new_tar_f)
@@ -84,10 +85,6 @@ def create_new_tar(cwd, mol_dirs):
     except Exception as e:
         print(e)
         raise e
-
-    finally:
-        if t is not None:
-            t.close()
 
 
 def dftb_uv_2d(mol_dir):
@@ -145,8 +142,9 @@ def process_tarfile(tarfpath):
         cwd = os.path.join(scratch_space_root, tarf_name)
         os.mkdir(cwd)
 
-        with tarfile.open(tarfpath) as t:
-            t.extractall(cwd)
+        run_cmd = "tar -C {} -xf {}".format(cwd, tarfpath)
+        p = subprocess.run(run_cmd.split())
+        p.check_returncode()
 
         # Get all molecule_directories in the unpacked tar file
         mol_dirs = get_mol_dirs(cwd)
