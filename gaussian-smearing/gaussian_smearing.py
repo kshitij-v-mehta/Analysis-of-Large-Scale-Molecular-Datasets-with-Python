@@ -4,6 +4,7 @@ Run this with 1 MPI process per node
 """
 import glob
 import os
+import time
 import getpass
 import shutil
 import subprocess
@@ -97,6 +98,9 @@ def dftb_uv_2d(mol_dir):
         dftbuv2d.smooth_spectrum(MPI.COMM_SELF, str(Path(mol_dir).parent), os.path.basename(mol_dir), None, 70.0, None, None)
 
         # Verify that the spectrum png file was created
+        assert os.path.exists("{}/{}".format(mol_dir, "EXC-smooth.DAT")), "EXC-smooth.DAT file not created"
+
+        # Verify that the spectrum png file was created
         assert len(glob.glob("{}/abs_spectrum_*.png".format(mol_dir))) == 1, "spectrum png file not created"
 
         return None
@@ -136,6 +140,7 @@ def process_tarfile(tarfpath):
     cwd = None
     retval = 0
     try:
+        t1 = time.time()
         print("Processing {} on {}".format(tarfpath, MPI.Get_processor_name()), flush=True)
 
         # Unpack the tar file in the working directory
@@ -159,6 +164,9 @@ def process_tarfile(tarfpath):
 
         # Set return value to success
         retval = 0
+
+        t2 = time.time()
+        print("Done processing {} in {} seconds".format(os.path.basename(tarfpath), round(t2-t1,2)), flush=True)
 
     except Exception as e:
         print(e)
