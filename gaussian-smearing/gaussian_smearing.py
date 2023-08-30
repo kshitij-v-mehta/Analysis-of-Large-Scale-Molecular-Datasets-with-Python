@@ -72,8 +72,9 @@ def create_new_tar(cwd, mol_dirs):
         new_tar_f_scratch_loc = "{}/{}".format(scratch_space_root, new_tar_f)
 
         # Create the new tar file in /tmp first, and then copy it to the file system
-        run_cmd = "tar -C {} -czf {}".format(scratch_space_root, new_tar_f)
-        run_cmd += " ".join(mol_dirs)
+        run_cmd = "tar -C {} -czf {} ".format(cwd, new_tar_f_scratch_loc)
+        for m in mol_dirs:
+            run_cmd += " {}".format(os.path.basename(m))
 
         p = subprocess.run(run_cmd.split())
         p.check_returncode()
