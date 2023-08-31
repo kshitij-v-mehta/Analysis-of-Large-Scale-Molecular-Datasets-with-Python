@@ -5,6 +5,7 @@ Run this with 1 MPI process per node
 import glob
 import os
 import time
+import sys
 import getpass
 import shutil
 import subprocess
@@ -22,13 +23,16 @@ dftbuv2d = importlib.import_module("dftb-uv_2d")
 
 
 # Location of the original tar files
-tarfiles_in = "./dataset"
+tarfiles_in = "/gpfs/alpine/world-shared/lrn026/kmehta/datasets/ornl-aisd-ex"
 
 # Where to store the new tar files containing the processed dataset
 tarfiles_out = "./dataset_out"
 
 # Set the location of the scratch space where tar files will be unpacked to /tmp/<username>
 scratch_space_root = "/tmp/{}".format(getpass.getuser())
+
+# Filename containing tar files that have already been processed
+tar_done_f = "tar_done.txt"
 
 
 def test_scratch_space():
@@ -43,10 +47,18 @@ def get_tar_file_list():
     try:
         _tarfiles_list = glob.glob("{}/*.tar.gz".format(tarfiles_in))
         tarfiles_list = [tarf for tarf in _tarfiles_list if 'unprocessed' not in tarf]
-        assert len(tarfiles_list) > 0, "No tar files found at {}".format(tarfiles_in)
 
-        print("Found {} tar files in {}".format(len(tarfiles_list), tarfiles_in), flush=True)
-        return tarfiles_list
+        tar_done = []
+        if os.path.exists(tar_done_f):
+            with open(tar_done_f) as f:
+                _tar_done = f.read().splitlines()
+                tar_done = [os.path.join(tarfiles_in, t) for t in _tar_done]
+
+        tar_remaining = list(set(tarfiles_list) ^ set(tar_done))
+        assert len(tar_remaining) > 0, "No tar files remaining or none found at {}".format(tarfiles_in)
+
+        print("Found {} tar files in {}".format(len(tar_remaining), tarfiles_in), flush=True)
+        return tar_remaining
 
     except Exception as e:
         raise e
