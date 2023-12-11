@@ -138,15 +138,47 @@ def dftb_uv_2d(mol_dir):
         return mol_dir
 
 
+def orca_uv_m(mol_dir):
+    try:
+        # print("Process {} with global rank {} on node {} received molecule {}"
+        #       "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
+
+        # Return if the molecule has failed
+        if check_orca_output(mol_dir) != 0:
+            return
+
+        # Generate the xyz file from the .gen file
+        if os.path.exists(os.path.join(mol_dir, "geo_end.gen")):
+            generate_xyz_files(mol_dir, None)
+
+        # draw_2Dmol(MPI.COMM_SELF, mol_dir)
+        orca_uv.smooth_spectrum(MPI.COMM_SELF, str(Path(mol_dir).parent), os.path.basename(mol_dir), None, 70.0, None, None)
+
+        # Verify that the orca-smmoth.DAT file was created
+        assert os.path.exists("{}/{}".format(mol_dir, "orca-smooth.DAT")), "EXC-smooth.DAT file not created"
+
+        # Verify that the spectrum png file was created
+        assert len(glob.glob("{}/abs_spectrum_*.png".format(mol_dir))) == 1, "spectrum png file not created"
+
+        return None
+
+    except Exception as e:
+        print("Exception: {} for molecule {}".format(e, mol_dir), flush=True)
+        print(traceback.format_exc(), flush=True)
+        return mol_dir
+
+
 def process_molecules_on_node(mol_dirs):
     # Distribute molecules from a tar file amongst all processes on the compute node
 
     try:
         nfailed = 0
         failed_molecules = []
+        nprocs = 2*(multiprocessing.cpu_count()-1)
+        chunksize = 300
         # Create a pool of processes and distribute molecules amongst them
-        with ProcessPoolExecutor() as executor:
-            for m in executor.map(dftb_uv_2d, mol_dirs):
+        with ProcessPoolExecutor(nprocs) as executor:
+            for m in executor.map(orca_uv_m, mol_dirs, chunksize=chunksize):
                 if m is not None:
                     nfailed += 1
                     failed_molecules.append(m)
