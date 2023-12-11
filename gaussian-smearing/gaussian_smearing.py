@@ -1,5 +1,5 @@
 """
-Apply Gaussian smearing on the AiSD-Ex dataset
+Apply Gaussian smearing on molecular datasets generated using TDDFT, DFTB+, and EOM-CCSD methods
 Run this with 1 MPI process per node
 """
 import glob
@@ -13,17 +13,22 @@ import traceback
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
+import multiprocessing
 
 from mpi4py import MPI
 from mpi4py.futures import MPICommExecutor
 
+from find_failed_molecules import check_orca_output
+from convert_gen_to_xyz import generate_xyz_files
 import mpi_utils
 import importlib
-dftbuv2d = importlib.import_module("dftb-uv_2d")
 
+import orca_uv
+# dftbuv2d = importlib.import_module("dftb-uv_2d")
+# orcauv = importlib.import_module("orca-uv")
 
 # Location of the original tar files
-tarfiles_in = "/gpfs/alpine/world-shared/lrn026/kmehta/datasets/ornl-aisd-ex"
+tarfiles_in = "/gpfs/alpine/world-shared/lrn026/kmehta/datasets/gdb-9-ex/orca-td-dft-pbe0"
 
 # Where to store the new tar files containing the processed dataset
 tarfiles_out = "./dataset_out"
@@ -41,6 +46,12 @@ def test_scratch_space():
         os.makedirs(scratch_space_root, exist_ok=True)
     except Exception as e:
         raise e
+
+
+def contains_subdirs(dirpath):
+    # Return True if there are subdirectories in dirpath
+    dirs = [f for f in os.scandir(dirpath) if f.is_dir()]
+    return True if len(dirs) > 0 else False
 
 
 def get_tar_file_list():
@@ -67,6 +78,10 @@ def get_tar_file_list():
 def get_mol_dirs(tar_cwd):
     try:
         mol_dirs = [os.path.join(tar_cwd, mol_dir) for mol_dir in next(os.walk(tar_cwd))[1]]
+
+        if len(mol_dirs) == 1 and contains_subdirs(mol_dirs[0]):
+            return get_mol_dirs(mol_dirs[0])
+
         assert len(mol_dirs) > 0, "No molecule directories found in {}".format(tar_cwd)
         return mol_dirs
 
