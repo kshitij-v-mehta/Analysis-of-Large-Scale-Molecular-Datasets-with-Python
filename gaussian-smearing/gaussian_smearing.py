@@ -18,17 +18,16 @@ import multiprocessing
 from mpi4py import MPI
 from mpi4py.futures import MPICommExecutor
 
-from find_failed_molecules import check_orca_output
 from convert_gen_to_xyz import generate_xyz_files
 import mpi_utils
 import importlib
 
-import orca_uv
-# dftbuv2d = importlib.import_module("dftb-uv_2d")
+# import orca_uv
+dftbuv2d = importlib.import_module("dftb-uv_2d")
 # orcauv = importlib.import_module("orca-uv")
 
 # Location of the original tar files
-tarfiles_in = "/gpfs/alpine/world-shared/lrn026/kmehta/datasets/gdb-9-ex/orca-td-dft-pbe0"
+tarfiles_in = "/lustre/orion/lrn026/world-shared/kmehta/datasets/ornl-aisd-ex"
 
 # Where to store the new tar files containing the processed dataset
 tarfiles_out = "./dataset_out"
@@ -121,6 +120,11 @@ def dftb_uv_2d(mol_dir):
         # print("Process {} with global rank {} on node {} received molecule {}"
         #       "".format(os.getpid(), MPI.COMM_WORLD.Get_rank(), MPI.Get_processor_name(), mol_dir), flush=True)
 
+        try:
+            generate_xyz_files(mol_dir)
+        except Exception as e:
+            print(f"Could not generate xyz file for {mol_dir}")
+
         # draw_2Dmol(MPI.COMM_SELF, mol_dir)
         dftbuv2d.smooth_spectrum(MPI.COMM_SELF, str(Path(mol_dir).parent), os.path.basename(mol_dir), None, 70.0, None, None)
 
@@ -179,7 +183,7 @@ def process_molecules_on_node(mol_dirs):
         chunksize = 300
         # Create a pool of processes and distribute molecules amongst them
         with ProcessPoolExecutor(nprocs) as executor:
-            for m in executor.map(orca_uv_m, mol_dirs, chunksize=chunksize):
+            for m in executor.map(dftb_uv_2d, mol_dirs, chunksize=chunksize):
                 if m is not None:
                     nfailed += 1
                     failed_molecules.append(m)

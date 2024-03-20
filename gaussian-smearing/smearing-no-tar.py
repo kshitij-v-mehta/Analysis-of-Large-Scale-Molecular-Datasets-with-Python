@@ -32,7 +32,6 @@ def orca_smooth_spectrum(mol_dir):
     except Exception as e:
         print("{} for {}".format(e, os.path.basename(mol_dir)), flush=True)
         print(traceback.format_exc())
-        sys.exit(1)
 
 
 def main():
